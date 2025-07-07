@@ -92,9 +92,11 @@ with st.sidebar:
             for up_file in uploaded_files:
                 save_path = st.session_state.current_path / up_file.name
                 with open(save_path, "wb") as f:
-                    f.write(up_file.getbuffer())
+                    # ⭐ MODIFICATION HERE: Stream the file to disk for memory efficiency
+                    shutil.copyfileobj(up_file, f)
             st.success(f"Uploaded {len(uploaded_files)} file(s)!")
             st.rerun()
+
     with st.expander("➕ Create New Folder"):
         with st.form("new_folder_form", clear_on_submit=True):
             folder_name = st.text_input("Folder Name")
@@ -116,7 +118,6 @@ with st.sidebar:
 # Header: Home Button and Breadcrumbs
 st.markdown("### My Files")
 
-# Create a container for the breadcrumbs to sit next to the Home button
 main_header = st.container()
 with main_header:
     cols = st.columns([1, 6])
@@ -126,33 +127,24 @@ with main_header:
             st.rerun()
 
     with cols[1]:
-        # --- BREADCRUMB LOGIC (REVISED AND COMPATIBLE) ---
         path_parts = st.session_state.current_path.relative_to(STORAGE_DIR).parts
-        
-        # We create a horizontal layout for breadcrumbs using columns
         breadcrumb_cols = st.columns(len(path_parts) * 2 + 1)
-        
-        # "Home" is always the first, non-clickable part in this context
         with breadcrumb_cols[0]:
              st.markdown("Home")
-
-        # Create clickable buttons for each part of the path
         for i, part in enumerate(path_parts):
             with breadcrumb_cols[i*2 + 1]:
-                 st.markdown("&nbsp;>&nbsp;", unsafe_allow_html=True) # Separator
+                 st.markdown("&nbsp;>&nbsp;", unsafe_allow_html=True)
             with breadcrumb_cols[i*2 + 2]:
-                if i < len(path_parts) - 1: # If it's not the last part, make it a button
+                if i < len(path_parts) - 1:
                     if st.button(part, key=f"bc_{i}"):
                         st.session_state.current_path = STORAGE_DIR.joinpath(*path_parts[:i+1])
                         st.rerun()
-                else: # The last part is the current folder, display as bold text
+                else:
                     st.markdown(f"**{part}**")
 
 st.markdown("<hr style='margin:0.5rem 0'>", unsafe_allow_html=True)
 
-
 # --- File & Folder Listing ---
-# (The rest of the code is unchanged and correct)
 try:
     items = list(st.session_state.current_path.iterdir())
     folders = sorted([i for i in items if i.is_dir()], key=lambda i: i.name.lower())
@@ -161,7 +153,6 @@ try:
     if not folders and not files:
         st.info("This folder is empty.", icon="📂")
 
-    # Display Folders
     for folder in folders:
         cols = st.columns([6, 2, 2])
         with cols[0]:
@@ -182,7 +173,6 @@ try:
                     st.success(f"Deleted folder '{folder.name}'")
                     st.rerun()
 
-    # Display Files
     for file in files:
         stat = file.stat()
         cols = st.columns([6, 2, 2])
